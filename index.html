@@ -1,0 +1,2786 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderasyon Karargahı</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --bg-hover: #1e1e2d;
+            --border: #2a2a3c;
+            --accent: #8b5cf6;
+            --accent-light: #a78bfa;
+            --accent-glow: rgba(139, 92, 246, 0.3);
+            --text-primary: #f1f1f4;
+            --text-secondary: #9ca3af;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --online: #10b981;
+            --offline: #6b7280;
+        }
+        [data-theme="light"] {
+            --bg-primary: #f1f5f9;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-hover: #f8fafc;
+            --border: #e2e8f0;
+            --accent: #7c3aed;
+            --accent-light: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.15);
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --success: #059669;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --info: #2563eb;
+            --online: #059669;
+            --offline: #9ca3af;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .orb-1 { width: 400px; height: 400px; background: #8b5cf6; top: -100px; left: -100px; animation: float 8s ease-in-out infinite; }
+        .orb-2 { width: 300px; height: 300px; background: #3b82f6; bottom: -50px; right: -50px; animation: float 10s ease-in-out infinite reverse; }
+        .orb-3 { width: 250px; height: 250px; background: #a855f7; top: 40%; left: 60%; animation: float 12s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -30px); }
+        }
+        .glass {
+            background: rgba(22, 22, 31, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        [data-theme="light"] .glass {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--border);
+        }
+        .app-container { display: none; position: relative; z-index: 1; min-height: 100vh; }
+        .app-container.active { display: flex; }
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .logo {
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo i { font-size: 22px; -webkit-text-fill-color: #8b5cf6; }
+        .theme-toggle {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+        .nav-menu { padding: 12px 10px; flex: 1; overflow-y: auto; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            margin-bottom: 3px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 13px;
+            position: relative;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .nav-item.active { background: rgba(139, 92, 246, 0.15); color: var(--accent-light); border: 1px solid rgba(139, 92, 246, 0.3); }
+        .nav-item i { width: 20px; text-align: center; }
+        .user-card {
+            padding: 14px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px;
+            position: relative;
+        }
+        .user-avatar .status-dot {
+            position: absolute;
+            bottom: -2px; right: -2px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            border: 2px solid var(--bg-secondary);
+        }
+        .user-avatar .status-dot.online { background: var(--online); }
+        .user-avatar .status-dot.offline { background: var(--offline); }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-role { font-size: 11px; color: var(--accent-light); }
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 28px;
+            max-width: calc(100vw - 280px);
+        }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-title { font-size: 26px; font-weight: 700; }
+        .page-subtitle { color: var(--text-secondary); margin-top: 4px; font-size: 13px; }
+        .btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4); }
+        .btn-success { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .btn-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent-light); }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+        .stat-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            margin-bottom: 14px;
+        }
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-light); }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+        .stat-icon.green { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .stat-icon.orange { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .stat-icon.red { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .stat-value { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .stat-label { color: var(--text-secondary); font-size: 13px; }
+        .form-group { margin-bottom: 18px; position: relative; }
+        .form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: var(--text-secondary); }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-input:disabled { opacity: 0.6; cursor: not-allowed; }
+        .auth-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+        .auth-box { width: 100%; max-width: 440px; padding: 36px; }
+        .auth-title {
+            font-size: 30px;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .auth-subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 28px; font-size: 13px; }
+        .hint-text { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+        .table-container { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: var(--bg-secondary); }
+        th { padding: 12px 14px; text-align: left; font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 12px 14px; border-top: 1px solid var(--border); color: var(--text-primary); }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .badge-approved { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .badge-rejected { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        .leaderboard-item:hover { border-color: var(--accent); }
+        .rank-num {
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800;
+            font-size: 13px;
+            background: var(--bg-hover);
+        }
+        .rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .rank-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); color: white; }
+        .rank-3 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .lb-info { flex: 1; }
+        .lb-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+        .lb-detail { font-size: 12px; color: var(--text-secondary); }
+        .lb-score { font-weight: 700; font-size: 16px; color: var(--accent-light); }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 10px; }
+        .photo-item {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            position: relative;
+            background: var(--bg-hover);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .photo-item:hover img { transform: scale(1.05); }
+        .photo-item .remove-btn {
+            position: absolute; top: 4px; right: 4px;
+            width: 22px; height: 22px;
+            background: rgba(239, 68, 68, 0.9);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 11px;
+            cursor: pointer; border: none;
+        }
+        .photo-add {
+            border: 2px dashed var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 20px;
+        }
+        .photo-add:hover { border-color: var(--accent); color: var(--accent-light); }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-hover);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+        .file-icon { font-size: 24px; color: var(--accent-light); }
+        .file-info { flex: 1; }
+        .file-name { font-weight: 600; font-size: 13px; }
+        .file-size { font-size: 11px; color: var(--text-secondary); }
+        .announcement-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 14px;
+            transition: all 0.2s;
+        }
+        .announcement-card:hover { border-color: var(--accent); }
+        .ann-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .ann-author { display: flex; align-items: center; gap: 10px; }
+        .ann-avatar { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+        .ann-meta { font-size: 11px; color: var(--text-secondary); }
+        .ann-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+        .ann-content { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            width: 100%; max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-header { padding: 20px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 18px; font-weight: 700; }
+        .modal-close { width: 32px; height: 32px; border-radius: 8px; background: var(--bg-hover); border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 0 20px 20px; display: flex; justify-content: flex-end; gap: 10px; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            animation: toastIn 0.3s ease;
+            min-width: 300px;
+            max-width: 400px;
+        }
+        @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-icon { font-size: 18px; }
+        .toast-success .toast-icon { color: var(--success); }
+        .toast-error .toast-icon { color: var(--danger); }
+        .toast-info .toast-icon { color: var(--info); }
+        .toast-title { font-weight: 600; font-size: 13px; }
+        .toast-msg { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+        .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .main-content { margin-left: 0; max-width: 100%; padding: 16px; }
+            .app-container.active { flex-direction: column; }
+        }
+        .hidden { display: none !important; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title i { color: var(--accent-light); }
+        .log-item {
+            padding: 12px 14px;
+            background: var(--bg-hover);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent);
+            font-size: 13px;
+        }
+        .log-time { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+        .loading-overlay {
+            position: fixed; inset: 0; background: rgba(10,10,15,0.9);
+            z-index: 5000; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 16px;
+        }
+        .loading-overlay.hidden { display: none !important; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .active-user-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .active-user-item:hover { background: var(--bg-hover); }
+        .active-user-avatar {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 11px;
+            position: relative;
+        }
+        .active-user-avatar .status-dot {
+            position: absolute;
+            bottom: -2px; right: -2px;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid var(--bg-secondary);
+        }
+        .active-user-name { font-weight: 600; }
+        .active-user-time { font-size: 10px; color: var(--text-secondary); margin-left: auto; }
+        .warning-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--warning);
+        }
+        .warning-card.u1 { border-left-color: var(--info); }
+        .warning-card.u2 { border-left-color: var(--warning); }
+        .warning-card.u3 { border-left-color: var(--danger); }
+        .shift-timer {
+            font-family: 'Courier New', monospace;
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin: 10px 0;
+            letter-spacing: 2px;
+        }
+        .shift-btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .checkin-timer {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--danger);
+            text-align: center;
+            margin: 8px 0;
+            height: 28px;
+        }
+        .checkin-timer.active { display: block; }
+        .checkin-timer.hidden { display: none; }
+        .activity-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .activity-row:last-child { border-bottom: none; }
+        .leaderboard-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .lb-tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .lb-tab:hover { border-color: var(--accent); }
+        .lb-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .search-box {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .date-filter-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div style="color: var(--text-secondary); font-size: 13px;">Sistem hazırlanıyor...</div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- AUTH -->
+    <div class="auth-container" id="authContainer">
+        <div class="auth-box glass">
+            <div class="auth-title">Moderasyon Karargahı</div>
+            <div class="auth-subtitle">Hesabınıza giriş yapın</div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Kullanıcı Adı</label>
+                    <input type="text" class="form-input" id="loginUsername" placeholder="Örn: @berkcan" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Şifre</label>
+                    <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" required>
+                    
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;">
+                    <i class="fas fa-sign-in-alt"></i> Giriş Yap
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div class="app-container" id="appContainer">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-shield-halved"></i> Moderasyon Karargahı</div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Tema Değiştir">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
+
+            <nav class="nav-menu">
+                <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+                    <i class="fas fa-home"></i> Ana Sayfa
+                </div>
+                <div class="nav-item" onclick="navigate('report')" id="nav-report">
+                    <i class="fas fa-file-alt"></i> Rapor At
+                </div>
+                <div class="nav-item" onclick="navigate('myreports')" id="nav-myreports">
+                    <i class="fas fa-folder-open"></i> Raporlarım
+                </div>
+                <div class="nav-item hidden" onclick="navigate('approval')" id="nav-approval">
+                    <i class="fas fa-check-double"></i> Onay Paneli
+                </div>
+                <div class="nav-item" onclick="navigate('leaderboard')" id="nav-leaderboard">
+                    <i class="fas fa-trophy"></i> Lider Tablosu
+                </div>
+                <div class="nav-item" onclick="navigate('announcements')" id="nav-announcements">
+                    <i class="fas fa-bullhorn"></i> Duyurular
+                </div>
+                <div class="nav-item" onclick="navigate('active-users')" id="nav-active-users">
+                    <i class="fas fa-users"></i> Aktif Kullanıcılar
+                </div>
+                <div class="nav-item" onclick="navigate('logs-at')" id="nav-logs-at">
+                    <i class="fas fa-exclamation-circle"></i> Logs At
+                </div>
+                <div class="nav-item hidden" onclick="navigate('discipline')" id="nav-discipline">
+                    <i class="fas fa-gavel"></i> Disiplin
+                </div>
+                <div class="nav-item" onclick="navigate('attendance')" id="nav-attendance">
+                    <i class="fas fa-clipboard-check"></i> Yoklama
+                </div>
+                <div class="nav-item hidden" onclick="navigate('approval-logs')" id="nav-approval-logs">
+                    <i class="fas fa-history"></i> Rapor Onay Logları
+                </div>
+                <div class="nav-item hidden" onclick="navigate('activity-logs')" id="nav-activity-logs">
+                    <i class="fas fa-stopwatch"></i> Aktiflik Logs
+                </div>
+                <div class="nav-item hidden" onclick="navigate('role-logs')" id="nav-role-logs">
+                    <i class="fas fa-user-shield"></i> Rol Logları
+                </div>
+                <div class="nav-item hidden" onclick="navigate('admin')" id="nav-admin">
+                    <i class="fas fa-users-cog"></i> Yetkilendirme
+                </div>
+            </nav>
+
+            <div class="user-card">
+                <div class="user-avatar" id="sidebarAvatar">
+                    B
+                    <span class="status-dot online" id="sidebarStatusDot"></span>
+                </div>
+                <div class="user-info">
+                    <div class="user-name" id="sidebarName">Berkcan</div>
+                    <div class="user-role" id="sidebarRole">Sunucu Yöneticisi</div>
+                </div>
+                <button class="btn btn-outline" style="padding:6px 8px; font-size:12px;" onclick="logout()" title="Çıkış">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- DASHBOARD -->
+            <div id="page-dashboard" class="page fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Ana Sayfa</div>
+                        <div class="page-subtitle">Mesai durumunuz ve panel özeti</div>
+                    </div>
+                </div>
+                
+                <div class="glass" style="padding: 28px; margin-bottom: 24px; text-align: center;">
+                    <div class="section-title" style="justify-content: center;"><i class="fas fa-clock"></i> Mesai Sayaç</div>
+                    <div class="shift-timer" id="shiftTimerDisplay">00:00:00</div>
+                    <div class="checkin-timer hidden" id="checkinTimerDisplay">Aktifim: 05:30</div>
+                    <div class="shift-btn-group">
+                        <button class="btn btn-success" id="btnStartShift" onclick="startShift()">
+                            <i class="fas fa-play"></i> Mesai Başla
+                        </button>
+                        <button class="btn btn-warning hidden" id="btnCheckin" onclick="checkIn()">
+                            <i class="fas fa-hand-point-up"></i> Aktifim
+                        </button>
+                        <button class="btn btn-danger hidden" id="btnEndShift" onclick="endShift()">
+                            <i class="fas fa-stop"></i> Mesai Bitir
+                        </button>
+                    </div>
+                    <div class="hint-text" style="margin-top: 12px;">
+                        Mesai başladıktan sonra her 10 dakikada bir "Aktifim" butonuna basmalısınız. 
+                        5 dakika 30 saniye içinde basılmazsa mesai otomatik durur.
+                    </div>
+                </div>
+
+                <div class="cards-grid" id="dashboardStats"></div>
+                <div class="glass" style="padding: 20px; margin-top: 20px;">
+                    <div class="section-title"><i class="fas fa-bullhorn"></i> Son Duyurular</div>
+                    <div id="dashboardAnnouncements"></div>
+                </div>
+                <div class="glass" style="padding: 20px; margin-top: 20px;">
+                    <div class="section-title"><i class="fas fa-users"></i> Aktif Kullanıcılar</div>
+                    <div id="dashboardActiveUsers" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <!-- REPORT -->
+            <div id="page-report" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Rapor At</div>
+                        <div class="page-subtitle">Günlük aktivitelerinizi raporlayın</div>
+                    </div>
+                </div>
+                <div class="glass" style="max-width: 800px; padding: 28px;">
+                    <form onsubmit="submitReport(event)" id="reportForm">
+                        <div class="form-group">
+                            <label class="form-label">Rapor Tarihi</label>
+                            <input type="date" class="form-input" id="reportDate" required>
+                            <div class="hint-text">Sadece son 30 gün içindeki tarihleri seçebilirsiniz.</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Aktif Kalınan Süre (Otomatik)</label>
+                            <input type="text" class="form-input" id="reportAutoTime" disabled value="Mesai aktif değil">
+                            <div class="hint-text">Mesai başlat butonundan otomatik hesaplanır. Silme veya ayarlama yapılamaz.</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">İcraatleriniz (Her satıra bir icraat)</label>
+                            <textarea class="form-textarea" id="reportIcraat" placeholder="- Oyuncu kayıtlarını düzenledim&#10;- 3 adet etkinlik kontrolü yaptım&#10;- Toplantıya katıldım" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Kanıt Fotoğrafları (Limitsiz)</label>
+                            <div class="photo-grid" id="reportPhotos">
+                                <div class="photo-item photo-add" onclick="document.getElementById('photoInput').click()">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                            </div>
+                            <input type="file" id="photoInput" multiple accept="image/*" style="display:none" onchange="handlePhotoSelect(event)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ek Dosyalar (PDF, Word - Limitsiz)</label>
+                            <div id="fileList" style="margin-bottom: 10px;"></div>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx" style="display:none" onchange="handleFileSelect(event)">
+                            <button type="button" class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-paperclip"></i> Dosya Ekle
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ekstra Not (İsteğe bağlı)</label>
+                            <textarea class="form-textarea" id="reportNote" placeholder="Varsa eklemek istediğiniz notlar..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">
+                            <i class="fas fa-paper-plane"></i> Raporu Gönder
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MY REPORTS -->
+            <div id="page-myreports" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Raporlarım</div>
+                        <div class="page-subtitle">Gönderdiğiniz raporların durumu</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Rapor ID</th><th>Tarih</th><th>Aktiflik</th><th>İcraat</th><th>Kanıt</th><th>Dosya</th><th>Durum</th><th>İşlem</th></tr>
+                        </thead>
+                        <tbody id="myReportsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- APPROVAL -->
+            <div id="page-approval" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Onay Paneli</div>
+                        <div class="page-subtitle">Bekleyen raporları inceleyin</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Rapor ID</th><th>Personel</th><th>Tarih</th><th>Aktiflik</th><th>İcraat</th><th>Kanıt</th><th>Dosya</th><th>Durum</th><th>İşlem</th></tr>
+                        </thead>
+                        <tbody id="approvalTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LEADERBOARD -->
+            <div id="page-leaderboard" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Lider Tablosu</div>
+                        <div class="page-subtitle">Haftalık performans sıralaması (Her hafta yenilenir)</div>
+                    </div>
+                </div>
+                <div class="leaderboard-tabs">
+                    <button class="lb-tab active" onclick="setLeaderboardTab('reports')">Onaylı Rapor</button>
+                    <button class="lb-tab" onclick="setLeaderboardTab('icraat')">İcraat</button>
+                    <button class="lb-tab" onclick="setLeaderboardTab('activity')">Aktiflik</button>
+                </div>
+                <div class="glass" style="padding: 20px;">
+                    <div id="leaderboardContent"></div>
+                </div>
+            </div>
+
+            <!-- ANNOUNCEMENTS -->
+            <div id="page-announcements" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Duyurular</div>
+                        <div class="page-subtitle">Genel duyurular</div>
+                    </div>
+                    <button class="btn btn-primary hidden" id="btnNewAnnouncement" onclick="openAnnouncementModal()">
+                        <i class="fas fa-plus"></i> Yeni Duyuru
+                    </button>
+                </div>
+                <div id="announcementsList"></div>
+            </div>
+
+            <!-- ACTIVE USERS -->
+            <div id="page-active-users" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Aktif Kullanıcılar</div>
+                        <div class="page-subtitle">Anlık online durumu ve son görülme bilgisi</div>
+                    </div>
+                </div>
+                <div class="cards-grid" id="activeUsersStats"></div>
+                <div class="glass" style="padding: 20px;">
+                    <div class="section-title"><i class="fas fa-users"></i> Kullanıcı Durumları</div>
+                    <div id="activeUsersList"></div>
+                </div>
+            </div>
+
+            <!-- LOGS AT -->
+            <div id="page-logs-at" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Logs At</div>
+                        <div class="page-subtitle">Sunucu ihlali ve ceza kayıtları</div>
+                    </div>
+                </div>
+                <div class="glass" style="max-width: 800px; padding: 28px; margin-bottom: 24px;">
+                    <form onsubmit="submitLogAt(event)" id="logAtForm">
+                        <div class="form-group">
+                            <label class="form-label">Logs Tarihi</label>
+                            <input type="date" class="form-input" id="logAtDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sunucu İhlali Yapan</label>
+                            <input type="text" class="form-input" id="logAtViolator" placeholder="Kullanıcı adı veya ID" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">İhlal Durumu</label>
+                            <textarea class="form-textarea" id="logAtStatus" placeholder="İhlalin detaylı açıklaması..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ceza</label>
+                            <input type="text" class="form-input" id="logAtPunishment" placeholder="Verilen ceza" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fotoğraflar (Limitsiz)</label>
+                            <div class="photo-grid" id="logAtPhotos">
+                                <div class="photo-item photo-add" onclick="document.getElementById('logAtPhotoInput').click()">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                            </div>
+                            <input type="file" id="logAtPhotoInput" multiple accept="image/*" style="display:none" onchange="handleLogAtPhotoSelect(event)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ek Dosyalar (Limitsiz)</label>
+                            <div id="logAtFileList" style="margin-bottom: 10px;"></div>
+                            <input type="file" id="logAtFileInput" multiple style="display:none" onchange="handleLogAtFileSelect(event)">
+                            <button type="button" class="btn btn-outline" onclick="document.getElementById('logAtFileInput').click()">
+                                <i class="fas fa-paperclip"></i> Dosya Ekle
+                            </button>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">
+                            <i class="fas fa-paper-plane"></i> Logs Gönder
+                        </button>
+                    </form>
+                </div>
+                <div class="page-header" style="margin-top: 40px;">
+                    <div>
+                        <div class="page-title" style="font-size: 20px;">Gönderilen Logs</div>
+                    </div>
+                </div>
+                <div id="logsAtList"></div>
+            </div>
+
+            <!-- DISCIPLINE -->
+            <div id="page-discipline" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Ceza ve Disiplin Sistemi</div>
+                        <div class="page-subtitle">Uyarı ve disiplin işlemleri</div>
+                    </div>
+                    <button class="btn btn-warning" onclick="openWarningModal()">
+                        <i class="fas fa-exclamation-triangle"></i> Uyarı Ver
+                    </button>
+                </div>
+                <div class="glass" style="padding: 20px; margin-bottom: 20px;">
+                    <div class="section-title"><i class="fas fa-info-circle"></i> Disiplin Kuralları</div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+                        <span class="badge badge-u1">U1</span> İlk uyarı - Sözlü tebliğ<br>
+                        <span class="badge badge-u2">U2</span> İkinci uyarı - Yazılı tebliğ<br>
+                        <span class="badge badge-u3">U3</span> Üçüncü uyarı - <strong>Otomatik rapor yasağı</strong> uygulanır.
+                    </div>
+                </div>
+                <div class="glass" style="padding: 20px;">
+                    <div class="section-title"><i class="fas fa-history"></i> Uyarı Geçmişi</div>
+                    <div id="warningsList"></div>
+                </div>
+            </div>
+
+            <!-- ATTENDANCE (Yoklama / Aktiflik Sorgu) -->
+            <div id="page-attendance" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Yoklama</div>
+                        <div class="page-subtitle">Günlük aktiflik, rapor ve logs sorgulama</div>
+                    </div>
+                </div>
+                <div class="glass" style="padding: 20px; margin-bottom: 20px;">
+                    <div class="date-filter-row">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label class="form-label">Tarih Seç</label>
+                            <input type="date" class="form-input" id="attendanceDate" onchange="renderAttendance()">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label class="form-label">Kullanıcı Ara (@isim)</label>
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="attendanceSearch" placeholder="@kullanici" oninput="renderAttendance()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Personel</th>
+                                <th>Aktiflik Süresi</th>
+                                <th>Logs Sayısı</th>
+                                <th>İcraat Sayısı</th>
+                                <th>Rapor Durumu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- APPROVAL LOGS -->
+            <div id="page-approval-logs" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Rapor Onay Logları</div>
+                        <div class="page-subtitle">Rapor onay/red geçmişi</div>
+                    </div>
+                </div>
+                <div id="approvalLogsContainer"></div>
+            </div>
+
+            <!-- ACTIVITY LOGS -->
+            <div id="page-activity-logs" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Aktiflik Logs</div>
+                        <div class="page-subtitle">Personellerin günlük mesai kayıtları</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Personel</th><th>Tarih</th><th>Başlangıç</th><th>Bitiş</th><th>Süre</th><th>Günlük Toplam</th></tr>
+                        </thead>
+                        <tbody id="activityLogsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ROLE LOGS -->
+            <div id="page-role-logs" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Rol Logları</div>
+                        <div class="page-subtitle">Kullanıcı rol değişiklik geçmişi</div>
+                    </div>
+                </div>
+                <div id="roleLogsContainer"></div>
+            </div>
+
+            <!-- ADMIN -->
+            <div id="page-admin" class="page hidden fade-in">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Yetkilendirme</div>
+                        <div class="page-subtitle">Kullanıcı rollerini yönetin</div>
+                    </div>
+                </div>
+                <div class="glass" style="padding: 20px; margin-bottom: 20px;">
+                    <div class="section-title"><i class="fas fa-user-plus"></i> Yeni Personel Ekle / Rol Güncelle</div>
+                    <form id="addUserForm" onsubmit="addUser(event)" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end;">
+                        <div>
+                            <label class="form-label">Kullanıcı Adı (@kullanici)</label>
+                            <input type="text" class="form-input" id="newUserUsername" placeholder="@kullanici" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Rol</label>
+                            <select class="form-select" id="newUserRole" required>
+                                <option value="sunucu_yoneticisi">Sunucu Yöneticisi</option>
+                                <option value="moderasyon_sefi">Moderasyon Şefi</option>
+                                <option value="moderasyon_yonetim">Moderasyon Yönetim Kurulu</option>
+                                <option value="moderasyon">Moderasyon</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 38px;">
+                            <i class="fas fa-plus"></i> Ekle / Güncelle
+                        </button>
+                    </form>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>@Kullanıcı</th><th>@Rol</th><th>@Şifre</th><th>Durum</th><th>İşlem</th></tr>
+                        </thead>
+                        <tbody id="usersTable"></tbody>
+                    </table>
+                </div>
+
+                <!-- ŞİFRE DEĞİŞTİR (Sadece SY) -->
+                <div class="glass" style="padding: 20px; margin-top: 20px;">
+                    <div class="section-title"><i class="fas fa-key"></i> Şifre Değiştir</div>
+                    <form id="changePasswordForm" onsubmit="changePassword(event)" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 14px; align-items: end;">
+                        <div>
+                            <label class="form-label">Kullanıcı (@kullanici)</label>
+                            <input type="text" class="form-input" id="cpUsername" placeholder="@kullanici" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Yeni Şifre</label>
+                            <input type="password" class="form-input" id="cpNewPassword" placeholder="••••••••" required minlength="4">
+                        </div>
+                        <div>
+                            <label class="form-label">Tekrar Yeni Şifre</label>
+                            <input type="password" class="form-input" id="cpConfirmPassword" placeholder="••••••••" required minlength="4">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height: 38px;">
+                            <i class="fas fa-save"></i> Şifreyi Güncelle
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Rapor Detayı</div>
+                <button class="modal-close" onclick="closeModal('reportModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="reportModalBody"></div>
+            <div class="modal-footer" id="reportModalFooter"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="announcementModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Yeni Duyuru</div>
+                <button class="modal-close" onclick="closeModal('announcementModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Başlık</label>
+                    <input type="text" class="form-input" id="annTitle" placeholder="Duyuru başlığı" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">İçerik</label>
+                    <textarea class="form-textarea" id="annContent" placeholder="Duyuru içeriği..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('announcementModal')">İptal</button>
+                <button class="btn btn-primary" onclick="submitAnnouncement()">Yayınla</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="warningModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Uyarı Ver</div>
+                <button class="modal-close" onclick="closeModal('warningModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Kullanıcı (@kullanici)</label>
+                    <input type="text" class="form-input" id="warnUsername" placeholder="@kullanici" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Uyarı Seviyesi</label>
+                    <select class="form-select" id="warnLevel">
+                        <option value="U1">U1 - Sözlü Uyarı</option>
+                        <option value="U2">U2 - Yazılı Uyarı</option>
+                        <option value="U3">U3 - Ağır Uyarı (Otomatik Yaptırım)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sebep</label>
+                    <textarea class="form-textarea" id="warnReason" placeholder="Uyarı sebebini açıklayın..." required></textarea>
+                </div>
+                <div class="form-group hidden" id="warnBanGroup">
+                    <label class="form-label">Rapor Yasağı Süresi (Gün)</label>
+                    <select class="form-select" id="warnBanDays">
+                        <option value="1">1 Gün</option>
+                        <option value="3">3 Gün</option>
+                        <option value="7">7 Gün</option>
+                        <option value="14">14 Gün</option>
+                        <option value="30">30 Gün</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('warningModal')">İptal</button>
+                <button class="btn btn-warning" onclick="submitWarning()">Uyarı Ver</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+                // ================= FIREBASE INIT =================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDvUO2G5vfGFDn2nzA_fNi_ff99rfx3xLI",
+            authDomain: "mod-karargah.firebaseapp.com",
+            databaseURL: "https://mod-karargah-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mod-karargah",
+            storageBucket: "mod-karargah.firebasestorage.app",
+            messagingSenderId: "539077569852",
+            appId: "1:539077569852:web:dab7ea26d5964760b08239",
+            measurementId: "G-SLCRNWXKEY"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ================= DATA =================
+        const ROLES = {
+            sunucu_yoneticisi: { label: 'Sunucu Yöneticisi', level: 4 },
+            moderasyon_sefi: { label: 'Moderasyon Şefi', level: 3 },
+            moderasyon_yonetim: { label: 'Moderasyon Yönetim Kurulu', level: 3 },
+            moderasyon: { label: 'Moderasyon', level: 1 }
+        };
+
+        let currentUser = null;
+        let users = [];
+        let reports = [];
+        let logsAt = [];
+        let announcements = [];
+        let approvalLogs = [];
+        let warnings = [];
+        let activityLogs = [];
+        let presence = {};
+        let userBans = [];
+        let roleChangeLogs = [];
+        let nextReportId = 1;
+        let nextLogAtId = 1;
+        let tempPhotos = [];
+        let tempFiles = [];
+        let logAtTempPhotos = [];
+        let logAtTempFiles = [];
+        let currentLeaderboardTab = 'reports';
+
+        // Mesai değişkenleri
+        let shiftInterval = null;
+        let checkinInterval = null;
+        let shiftStartTime = null;
+        let lastCheckInTime = null;
+        let isShiftActive = false;
+        let checkInPending = false;
+
+        // ================= UTILS =================
+        function arrayToObject(arr) {
+            const obj = {};
+            arr.forEach((item, idx) => { if (item && item.id !== undefined) obj[item.id] = item; else obj[idx] = item; });
+            return obj;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const parts = dateStr.split('-');
+            return parts[2] + '.' + parts[1] + '.' + parts[0];
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '-';
+            const d = new Date(ts);
+            return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ':' + d.getSeconds().toString().padStart(2,'0');
+        }
+
+        function formatDateTime(ts) {
+            if (!ts) return '-';
+            const d = new Date(ts);
+            return d.getDate().toString().padStart(2,'0') + '.' + (d.getMonth()+1).toString().padStart(2,'0') + '.' + d.getFullYear() + ' ' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        }
+
+        function formatDuration(ms) {
+            if (!ms || ms < 0) return '0s 0dk 0sn';
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${hours}s ${minutes}dk ${seconds}sn`;
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'approved') return '<span class="badge badge-approved">Onaylandı</span>';
+            if (status === 'rejected') return '<span class="badge badge-rejected">Reddedildi</span>';
+            return '<span class="badge badge-pending">Bekliyor</span>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+            return text.replace(urlRegex, function(url) {
+                let href = url;
+                if (!href.startsWith('http')) href = 'https://' + href;
+                return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-light); text-decoration: underline;">' + url + '</a>';
+            });
+        }
+
+        function showToast(type, title, msg) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
+            toast.innerHTML = `
+                <i class="fas ${icon} toast-icon"></i>
+                <div>
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-msg">${msg}</div>
+                </div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ================= THEME =================
+        function initTheme() {
+            const saved = localStorage.getItem('karargah-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                updateThemeIcon(saved);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                document.documentElement.setAttribute('data-theme', 'light');
+                updateThemeIcon('light');
+            }
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.className = theme === 'light' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('karargah-theme', next);
+            updateThemeIcon(next);
+        }
+
+        // ================= PRESENCE =================
+        function initPresence() {
+            if (!currentUser) return;
+            const userRef = db.ref('presence/' + currentUser.id);
+            userRef.set({ online: true, lastSeen: Date.now(), name: currentUser.name, role: currentUser.role });
+            userRef.onDisconnect().update({ online: false, lastSeen: Date.now() });
+
+            window.addEventListener('beforeunload', () => {
+                if (currentUser) db.ref('presence/' + currentUser.id).update({ online: false, lastSeen: Date.now() });
+            });
+        }
+
+        function getLastSeenText(lastSeen) {
+            if (!lastSeen) return 'Hiç görülmedi';
+            const diff = Date.now() - lastSeen;
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'Şimdi';
+            if (mins < 60) return mins + ' dk önce';
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return hours + ' saat önce';
+            return Math.floor(hours / 24) + ' gün önce';
+        }
+
+        // ================= FIREBASE SYNC =================
+        function initFirebaseSync() {
+            db.ref('users').on('value', snap => {
+                users = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'admin') renderAdmin();
+                if (currentPage === 'approval') renderApproval();
+                if (currentPage === 'dashboard') renderDashboard();
+                if (currentPage === 'leaderboard') renderLeaderboard();
+                if (currentPage === 'active-users') renderActiveUsers();
+                if (currentPage === 'discipline') renderDiscipline();
+                if (currentPage === 'attendance') renderAttendance();
+            });
+
+            db.ref('reports').on('value', snap => {
+                reports = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'approval') renderApproval();
+                if (currentPage === 'myreports') renderMyReports();
+                if (currentPage === 'dashboard') renderDashboard();
+                if (currentPage === 'leaderboard') renderLeaderboard();
+                if (currentPage === 'attendance') renderAttendance();
+            });
+
+            db.ref('logsAt').on('value', snap => {
+                logsAt = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'logs-at') renderLogsAtList();
+                if (currentPage === 'attendance') renderAttendance();
+            });
+
+            db.ref('announcements').on('value', snap => {
+                announcements = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'announcements') renderAnnouncements();
+                if (currentPage === 'dashboard') renderDashboard();
+            });
+
+            db.ref('approvalLogs').on('value', snap => {
+                approvalLogs = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'approval-logs') renderApprovalLogs();
+            });
+
+            db.ref('warnings').on('value', snap => {
+                warnings = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'discipline') renderDiscipline();
+            });
+
+            db.ref('activityLogs').on('value', snap => {
+                activityLogs = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'activity-logs') renderActivityLogs();
+                if (currentPage === 'attendance') renderAttendance();
+                if (currentPage === 'leaderboard') renderLeaderboard();
+            });
+
+            db.ref('presence').on('value', snap => {
+                presence = snap.val() || {};
+                if (currentPage === 'active-users') renderActiveUsers();
+                if (currentPage === 'dashboard') renderDashboard();
+            });
+
+            db.ref('userBans').on('value', snap => {
+                userBans = snap.val() ? Object.values(snap.val()) : [];
+            });
+
+            db.ref('roleChangeLogs').on('value', snap => {
+                roleChangeLogs = snap.val() ? Object.values(snap.val()) : [];
+                if (currentPage === 'role-logs') renderRoleLogs();
+            });
+
+            db.ref('nextReportId').on('value', snap => { nextReportId = snap.val() || 1; });
+            db.ref('nextLogAtId').on('value', snap => { nextLogAtId = snap.val() || 1; });
+        }
+
+        function saveUsers() { db.ref('users').set(arrayToObject(users)); }
+        function saveReports() { db.ref('reports').set(arrayToObject(reports)); }
+        function saveLogsAt() { db.ref('logsAt').set(arrayToObject(logsAt)); }
+        function saveAnnouncements() { db.ref('announcements').set(arrayToObject(announcements)); }
+        function saveApprovalLogs() { db.ref('approvalLogs').set(arrayToObject(approvalLogs)); }
+        function saveWarnings() { db.ref('warnings').set(arrayToObject(warnings)); }
+        function saveActivityLogs() { db.ref('activityLogs').set(arrayToObject(activityLogs)); }
+        function saveUserBans() { db.ref('userBans').set(arrayToObject(userBans)); }
+        function saveRoleChangeLogs() { db.ref('roleChangeLogs').set(arrayToObject(roleChangeLogs)); }
+        function saveNextReportId() { db.ref('nextReportId').set(nextReportId); }
+        function saveNextLogAtId() { db.ref('nextLogAtId').set(nextLogAtId); }
+
+        // ================= INIT DATA =================
+        async function initData() {
+            initTheme();
+            try {
+                var usersSnap = await db.ref('users').once('value');
+                
+                // Varsayılan hesaplar kaldırıldı - admin panelden manuel ekleme yapılmalı
+
+                var idSnap = await db.ref('nextReportId').once('value');
+                if (!idSnap.val()) await db.ref('nextReportId').set(1);
+
+                var logIdSnap = await db.ref('nextLogAtId').once('value');
+                if (!logIdSnap.val()) await db.ref('nextLogAtId').set(1);
+
+                initFirebaseSync();
+                checkWeeklyReset();
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            } catch(err) {
+                console.error('Init hatası:', err);
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                showToast('error', 'Bağlantı Hatası', 'Firebase bağlantısı kurulamadı.');
+            }
+        }
+
+        // ================= AUTH =================
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (password !== 'Teaf1234') {
+                showToast('error', 'Giriş Başarısız', 'Şifre hatalı. Sistem şifresi: Teaf1234');
+                return;
+            }
+
+            const user = users.find(u => u.username === username);
+            if (!user) {
+                showToast('error', 'Giriş Başarısız', 'Kullanıcı bulunamadı. Yetkilendirme sayfasından eklenmelisiniz.');
+                return;
+            }
+
+            currentUser = user;
+            initApp();
+            initPresence();
+            showToast('success', 'Giriş Başarılı', 'Hoş geldiniz, ' + user.name + '!');
+        }
+
+        function logout() {
+            if (currentUser) {
+                endShift(true); // Mesai varsa otomatik bitir
+                db.ref('presence/' + currentUser.id).update({ online: false, lastSeen: Date.now() });
+            }
+            currentUser = null;
+            document.getElementById('authContainer').style.display = 'flex';
+            document.getElementById('appContainer').classList.remove('active');
+            showToast('info', 'Çıkış Yapıldı', 'Güvenli bir şekilde çıkış yaptınız.');
+        }
+
+        // ================= APP INIT =================
+        function initApp() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+
+            document.getElementById('sidebarName').textContent = currentUser.name;
+            document.getElementById('sidebarRole').textContent = ROLES[currentUser.role].label;
+            document.getElementById('sidebarAvatar').textContent = currentUser.name[0].toUpperCase();
+
+            const level = ROLES[currentUser.role].level;
+            const isAdmin = currentUser.role === 'sunucu_yoneticisi';
+            const isSefi = currentUser.role === 'moderasyon_sefi';
+            const isYonetim = currentUser.role === 'moderasyon_yonetim';
+
+            // Yetkilere göre menü görünürlüğü
+            document.getElementById('nav-approval').classList.toggle('hidden', !(isAdmin || isSefi || isYonetim));
+            document.getElementById('nav-discipline').classList.toggle('hidden', !(isAdmin || isSefi));
+            document.getElementById('nav-approval-logs').classList.toggle('hidden', !(isAdmin || isSefi));
+            document.getElementById('nav-activity-logs').classList.toggle('hidden', !(isAdmin || isSefi));
+            document.getElementById('nav-admin').classList.toggle('hidden', !isAdmin);
+            document.getElementById('nav-role-logs').classList.toggle('hidden', !isAdmin);
+
+            // Duyuru butonu
+            document.getElementById('btnNewAnnouncement').classList.toggle('hidden', !(isAdmin || isSefi));
+
+            // Şifre değiştirme formu sadece SY'ye görünür
+            const cpForm = document.querySelector('#changePasswordForm');
+            if (cpForm) {
+                const cpContainer = cpForm.closest('.glass');
+                if (cpContainer) cpContainer.style.display = isAdmin ? 'block' : 'none';
+            }
+
+            navigate('dashboard');
+        }
+
+        // ================= NAVIGATION =================
+        let currentPage = 'dashboard';
+        function navigate(page) {
+            currentPage = page;
+            document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+            document.getElementById('page-' + page).classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navEl = document.getElementById('nav-' + page);
+            if (navEl) navEl.classList.add('active');
+
+            if (page === 'dashboard') renderDashboard();
+            if (page === 'myreports') renderMyReports();
+            if (page === 'approval') renderApproval();
+            if (page === 'leaderboard') renderLeaderboard();
+            if (page === 'announcements') renderAnnouncements();
+            if (page === 'active-users') renderActiveUsers();
+            if (page === 'logs-at') { renderLogsAtList(); document.getElementById('logAtDate').value = new Date().toISOString().split('T')[0]; }
+            if (page === 'discipline') renderDiscipline();
+            if (page === 'attendance') renderAttendance();
+            if (page === 'approval-logs') renderApprovalLogs();
+            if (page === 'activity-logs') renderActivityLogs();
+            if (page === 'role-logs') renderRoleLogs();
+            if (page === 'admin') renderAdmin();
+        }
+
+        // ================= MESAI SİSTEMİ =================
+        function startShift() {
+            if (isShiftActive) return;
+            
+            shiftStartTime = Date.now();
+            isShiftActive = true;
+            checkInPending = false;
+            
+            // UI Güncelle
+            document.getElementById('btnStartShift').classList.add('hidden');
+            document.getElementById('btnEndShift').classList.remove('hidden');
+            document.getElementById('reportAutoTime').value = "Mesai aktif - 00:00:00";
+            
+            // Sayaç başlat
+            shiftInterval = setInterval(updateShiftTimer, 1000);
+            
+            // İlk check-in 10 dakika sonra
+            setTimeout(() => {
+                if (isShiftActive) triggerCheckIn();
+            }, 10 * 60 * 1000); // 10 dakika
+            
+            showToast('success', 'Mesai Başladı', 'Mesai sayacı çalışıyor. Her 10 dakikada bir "Aktifim" butonuna basın.');
+        }
+
+        function triggerCheckIn() {
+            if (!isShiftActive) return;
+            checkInPending = true;
+            document.getElementById('btnCheckin').classList.remove('hidden');
+            
+            // 5 dakika geri sayım
+            let remaining = 5 * 60; // 5 dakika = 300 saniye
+            const checkinDisplay = document.getElementById('checkinTimerDisplay');
+            checkinDisplay.classList.remove('hidden');
+            checkinDisplay.classList.add('active');
+            
+            checkinInterval = setInterval(() => {
+                remaining--;
+                const m = Math.floor(remaining / 60).toString().padStart(2,'0');
+                const s = (remaining % 60).toString().padStart(2,'0');
+                checkinDisplay.textContent = `Aktifim: ${m}:${s}`;
+                
+                if (remaining <= 0) {
+                    clearInterval(checkinInterval);
+                    // 30 saniye ekstra süre
+                    let extra = 30;
+                    checkinDisplay.textContent = `Aktifim: 00:${extra} (Son Şans)`;
+                    
+                    const extraInterval = setInterval(() => {
+                        extra--;
+                        checkinDisplay.textContent = `Aktifim: 00:${extra.toString().padStart(2,'0')} (Son Şans)`;
+                        
+                        if (extra <= 0) {
+                            clearInterval(extraInterval);
+                            if (checkInPending) {
+                                // Basılmadı, mesaiyi durdur
+                                endShift(false, true);
+                                showToast('error', 'Mesai Durduruldu', '"Aktifim" butonuna basılmadığı için mesai otomatik durduruldu.');
+                            }
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function checkIn() {
+            if (!checkInPending || !isShiftActive) return;
+            
+            checkInPending = false;
+            clearInterval(checkinInterval);
+            document.getElementById('btnCheckin').classList.add('hidden');
+            document.getElementById('checkinTimerDisplay').classList.add('hidden');
+            document.getElementById('checkinTimerDisplay').classList.remove('active');
+            
+            showToast('success', 'Aktiflik Onayı', 'Aktif olduğunuz onaylandı. Sonraki kontrol 10 dakika sonra.');
+            
+            // Sonraki check-in 10 dakika sonra
+            setTimeout(() => {
+                if (isShiftActive) triggerCheckIn();
+            }, 10 * 60 * 1000);
+        }
+
+        function updateShiftTimer() {
+            if (!isShiftActive || !shiftStartTime) return;
+            const diff = Date.now() - shiftStartTime;
+            const h = Math.floor(diff / 3600000).toString().padStart(2,'0');
+            const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2,'0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2,'0');
+            document.getElementById('shiftTimerDisplay').textContent = `${h}:${m}:${s}`;
+            
+            if (document.getElementById('reportAutoTime')) {
+                document.getElementById('reportAutoTime').value = `Mesai aktif - ${h}s ${m}dk ${s}sn`;
+            }
+        }
+
+        function endShift(manual = false, autoStop = false) {
+            if (!isShiftActive) return;
+            
+            clearInterval(shiftInterval);
+            clearInterval(checkinInterval);
+            
+            const endTime = Date.now();
+            const duration = endTime - shiftStartTime;
+            
+            // Aktiflik logunu kaydet
+            const today = new Date().toISOString().split('T')[0];
+            const existingLog = activityLogs.find(l => l.userId === currentUser.id && l.date === today && !l.endTime);
+            
+            if (existingLog) {
+                // Aynı gün devam eden log varsa ekle
+                existingLog.endTime = endTime;
+                existingLog.duration = (existingLog.duration || 0) + duration;
+                existingLog.sessions = existingLog.sessions || [];
+                existingLog.sessions.push({ start: existingLog.startTime, end: endTime, duration });
+            } else {
+                activityLogs.push({
+                    id: Date.now(),
+                    userId: currentUser.id,
+                    username: currentUser.username,
+                    name: currentUser.name,
+                    date: today,
+                    startTime: shiftStartTime,
+                    endTime: endTime,
+                    duration: duration,
+                    sessions: [{ start: shiftStartTime, end: endTime, duration }]
+                });
+            }
+            saveActivityLogs();
+            
+            isShiftActive = false;
+            shiftStartTime = null;
+            checkInPending = false;
+            
+            document.getElementById('shiftTimerDisplay').textContent = '00:00:00';
+            document.getElementById('btnStartShift').classList.remove('hidden');
+            document.getElementById('btnEndShift').classList.add('hidden');
+            document.getElementById('btnCheckin').classList.add('hidden');
+            document.getElementById('checkinTimerDisplay').classList.add('hidden');
+            
+            if (!autoStop) {
+                showToast('info', 'Mesai Bitti', `Toplam aktiflik: ${formatDuration(duration)}`);
+            }
+        }
+
+        function getTodayTotalActivity(userId) {
+            const today = new Date().toISOString().split('T')[0];
+            const userLogs = activityLogs.filter(l => l.userId === userId && l.date === today);
+            return userLogs.reduce((sum, l) => sum + (l.duration || 0), 0);
+        }
+
+        function getTotalActivity(userId) {
+            const userLogs = activityLogs.filter(l => l.userId === userId);
+            return userLogs.reduce((sum, l) => sum + (l.duration || 0), 0);
+        }
+
+        // ================= DASHBOARD =================
+        function renderDashboard() {
+            if (!currentUser) return;
+            
+            // Mesai UI durumu
+            if (isShiftActive) {
+                document.getElementById('btnStartShift').classList.add('hidden');
+                document.getElementById('btnEndShift').classList.remove('hidden');
+            } else {
+                document.getElementById('btnStartShift').classList.remove('hidden');
+                document.getElementById('btnEndShift').classList.add('hidden');
+                document.getElementById('btnCheckin').classList.add('hidden');
+                document.getElementById('checkinTimerDisplay').classList.add('hidden');
+            }
+
+            const userReports = reports.filter(r => r.userId === currentUser.id);
+            const approved = userReports.filter(r => r.status === 'approved');
+            const pending = userReports.filter(r => r.status === 'pending');
+            const totalIcraat = approved.reduce((sum, r) => sum + (r.icraatlar ? r.icraatlar.length : 0), 0);
+            const todayActivity = getTodayTotalActivity(currentUser.id);
+
+            document.getElementById('dashboardStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i class="fas fa-file-alt"></i></div>
+                    <div class="stat-value">${approved.length}</div>
+                    <div class="stat-label">Onaylı Rapor</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value">${pending.length}</div>
+                    <div class="stat-label">Bekleyen Rapor</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-bolt"></i></div>
+                    <div class="stat-value">${totalIcraat}</div>
+                    <div class="stat-label">Toplam İcraat</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-stopwatch"></i></div>
+                    <div class="stat-value">${formatDuration(todayActivity).split('sn')[0]}</div>
+                    <div class="stat-label">Bugünkü Aktiflik</div>
+                </div>
+            `;
+
+            const recent = announcements.slice(-3).reverse();
+            if (recent.length === 0) {
+                document.getElementById('dashboardAnnouncements').innerHTML = `
+                    <div class="empty-state" style="padding: 16px;">
+                        <i class="fas fa-bullhorn" style="font-size: 20px;"></i>
+                        <p style="font-size: 12px;">Henüz duyuru bulunmuyor.</p>
+                    </div>
+                `;
+            } else {
+                document.getElementById('dashboardAnnouncements').innerHTML = recent.map(a => {
+                    const author = users.find(u => u.id === a.authorId);
+                    return `
+                    <div style="padding: 10px; background: var(--bg-hover); border-radius: 10px; margin-bottom: 6px; border-left: 3px solid var(--accent);">
+                        <div style="font-weight: 600; font-size: 13px; margin-bottom: 2px;">${a.title}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">${a.content.substring(0, 50)}${a.content.length > 50 ? '...' : ''}</div>
+                    </div>
+                `;}).join('');
+            }
+
+            const onlineUsers = Object.entries(presence).filter(([uid, p]) => p.online && users.find(u => u.id == uid));
+            const html = onlineUsers.map(([uid, p]) => {
+                const u = users.find(us => us.id == uid);
+                if (!u) return '';
+                return `
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-hover); border-radius: 20px; border: 1px solid var(--border); font-size: 12px;">
+                        <span style="width: 8px; height: 8px; background: var(--online); border-radius: 50%;"></span>
+                        <strong>${u.name}</strong>
+                        <span style="color: var(--text-secondary);">${ROLES[u.role].label}</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('dashboardActiveUsers').innerHTML = html || '<span style="color: var(--text-secondary); font-size: 13px;">Şu an aktif kullanıcı yok</span>';
+        }
+
+        // ================= REPORT =================
+        function handlePhotoSelect(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    tempPhotos.push(ev.target.result);
+                    renderPhotoGrid();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderPhotoGrid() {
+            const grid = document.getElementById('reportPhotos');
+            let html = '';
+            tempPhotos.forEach((photo, idx) => {
+                html += `<div class="photo-item"><img src="${photo}" alt="Kanıt"><button type="button" class="remove-btn" onclick="removePhoto(${idx})"><i class="fas fa-times"></i></button></div>`;
+            });
+            html += `<div class="photo-item photo-add" onclick="document.getElementById('photoInput').click()"><i class="fas fa-plus"></i></div>`;
+            grid.innerHTML = html;
+        }
+
+        function removePhoto(idx) {
+            tempPhotos.splice(idx, 1);
+            renderPhotoGrid();
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    tempFiles.push({ name: file.name, type: file.type, size: file.size, data: ev.target.result });
+                    renderFileList();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('fileList');
+            container.innerHTML = tempFiles.map((f, idx) => `
+                <div class="file-item">
+                    <i class="fas ${f.type.includes('pdf') ? 'fa-file-pdf' : 'fa-file-word'} file-icon"></i>
+                    <div class="file-info">
+                        <div class="file-name">${f.name}</div>
+                        <div class="file-size">${(f.size / 1024).toFixed(1)} KB</div>
+                    </div>
+                    <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="removeFile(${idx})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(idx) {
+            tempFiles.splice(idx, 1);
+            renderFileList();
+        }
+
+        function checkUserBan() {
+            if (!currentUser) return false;
+            const ban = userBans.find(b => b.userId === currentUser.id && b.bannedUntil > Date.now());
+            if (ban) {
+                const daysLeft = Math.ceil((ban.bannedUntil - Date.now()) / (1000 * 60 * 60 * 24));
+                showToast('error', 'Yasaklı Hesap', `Rapor gönderme yasağınız var. ${daysLeft} gün kaldı. Sebep: ${ban.reason}`);
+                return true;
+            }
+            return false;
+        }
+
+        function submitReport(e) {
+            e.preventDefault();
+            if (checkUserBan()) return;
+
+            const date = document.getElementById('reportDate').value;
+            const icraatText = document.getElementById('reportIcraat').value;
+            const note = document.getElementById('reportNote').value;
+            const autoTime = document.getElementById('reportAutoTime').value;
+
+            if (!date || !icraatText || autoTime === 'Mesai aktif değil') {
+                showToast('error', 'Hata', 'Lütfen mesai başlatın ve zorunlu alanları doldurun.');
+                return;
+            }
+
+            const icraatlar = icraatText.split('\n').filter(i => i.trim());
+            if (icraatlar.length === 0) {
+                showToast('error', 'Hata', 'En az bir icraat girmelisiniz.');
+                return;
+            }
+
+            // Aktiflik süresini otomatik hesapla
+            const todayActivity = getTodayTotalActivity(currentUser.id);
+            // Eğer şu an mesai aktifse, şu ana kadar olan süreyi ekle
+            let currentSession = 0;
+            if (isShiftActive && shiftStartTime) {
+                currentSession = Date.now() - shiftStartTime;
+            }
+            const totalMs = todayActivity + currentSession;
+            const totalHours = (totalMs / 3600000).toFixed(2);
+
+            const reportId = nextReportId;
+            nextReportId++;
+            saveNextReportId();
+
+            reports.push({
+                id: reportId,
+                userId: currentUser.id,
+                username: currentUser.username,
+                name: currentUser.name,
+                role: currentUser.role,
+                date,
+                hours: parseFloat(totalHours),
+                icraatlar,
+                note,
+                photos: [...tempPhotos],
+                files: [...tempFiles],
+                status: 'pending',
+                approvedBy: null,
+                approvedAt: null,
+                createdAt: Date.now()
+            });
+            saveReports();
+
+            e.target.reset();
+            tempPhotos = [];
+            tempFiles = [];
+            renderPhotoGrid();
+            renderFileList();
+            document.getElementById('reportAutoTime').value = isShiftActive ? 'Mesai aktif - ' + document.getElementById('shiftTimerDisplay').textContent : 'Mesai aktif değil';
+            showToast('success', 'Rapor Gönderildi', 'Raporunuz (ID: #' + reportId + ') onaya gönderildi.');
+            navigate('myreports');
+        }
+
+        // ================= MY REPORTS =================
+        function renderMyReports() {
+            if (!currentUser) return;
+            const myReports = reports.filter(r => r.userId === currentUser.id).sort((a,b) => b.createdAt - a.createdAt);
+            const tbody = document.getElementById('myReportsTable');
+
+            if (myReports.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-folder-open"></i><h3>Henüz rapor yok</h3></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = myReports.map(r => `
+                <tr>
+                    <td><strong>#${r.id}</strong></td>
+                    <td>${formatDate(r.date)}</td>
+                    <td>${r.hours} Saat</td>
+                    <td>${r.icraatlar.length}</td>
+                    <td>${r.photos ? r.photos.length : 0} foto</td>
+                    <td>${r.files && r.files.length > 0 ? r.files.length + ' dosya' : '-'}</td>
+                    <td>${getStatusBadge(r.status)}</td>
+                    <td>
+                        <button class="btn btn-outline" style="padding: 6px 10px; font-size: 11px;" onclick="viewReport(${r.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ================= APPROVAL =================
+        function renderApproval() {
+            if (!currentUser) return;
+            const level = ROLES[currentUser.role].level;
+            let pending = reports.filter(r => r.status === 'pending');
+            // Sadece kendi seviyesine uygun veya altındaki rollerin raporlarını göster
+            // Sunucu Yöneticisi ve Moderasyon Şefi hepsini görür, Yönetim Kurulu sadece Moderasyon raporlarını görür
+            if (currentUser.role === 'moderasyon_yonetim') {
+                pending = pending.filter(r => r.role === 'moderasyon');
+            }
+            
+            pending.sort((a,b) => b.createdAt - a.createdAt);
+            const tbody = document.getElementById('approvalTable');
+
+            if (pending.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-check-circle"></i><h3>Bekleyen rapor yok</h3></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = pending.map(r => {
+                const user = users.find(u => u.id === r.userId);
+                return `
+                    <tr>
+                        <td><strong>#${r.id}</strong></td>
+                        <td><strong>${user ? user.name : r.name}</strong><br><small style="color:var(--text-secondary)">${r.username}</small></td>
+                        <td>${formatDate(r.date)}</td>
+                        <td>${r.hours} Saat</td>
+                        <td>${r.icraatlar.length} adet</td>
+                        <td>${r.photos ? r.photos.length : 0} foto</td>
+                        <td>${r.files && r.files.length > 0 ? r.files.length + ' dosya' : '-'}</td>
+                        <td>${getStatusBadge(r.status)}</td>
+                        <td>
+                            <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px;" onclick="approveReport(${r.id})">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-danger" style="padding: 6px 10px; font-size: 11px; margin-left: 4px;" onclick="rejectReport(${r.id})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="btn btn-outline" style="padding: 6px 10px; font-size: 11px; margin-left: 4px;" onclick="viewReport(${r.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function approveReport(id) {
+            const r = reports.find(rep => rep.id === id);
+            if (r) {
+                r.status = 'approved';
+                r.approvedBy = currentUser.username;
+                r.approvedAt = Date.now();
+                saveReports();
+
+                approvalLogs.push({
+                    id: Date.now(),
+                    type: 'approve',
+                    reportId: r.id,
+                    reportOwner: r.name,
+                    reportOwnerUser: r.username,
+                    actionBy: currentUser.username,
+                    actionByName: currentUser.name,
+                    timestamp: Date.now()
+                });
+                saveApprovalLogs();
+
+                showToast('success', 'Onaylandı', `${r.name} adlı kullanıcının #${r.id} nolu raporu onaylandı.`);
+            }
+        }
+
+        function rejectReport(id) {
+            const r = reports.find(rep => rep.id === id);
+            if (r) {
+                r.status = 'rejected';
+                r.approvedBy = currentUser.username;
+                r.approvedAt = Date.now();
+                saveReports();
+
+                approvalLogs.push({
+                    id: Date.now(),
+                    type: 'reject',
+                    reportId: r.id,
+                    reportOwner: r.name,
+                    reportOwnerUser: r.username,
+                    actionBy: currentUser.username,
+                    actionByName: currentUser.name,
+                    timestamp: Date.now()
+                });
+                saveApprovalLogs();
+
+                showToast('info', 'Reddedildi', `${r.name} adlı kullanıcının #${r.id} nolu raporu reddedildi.`);
+            }
+        }
+
+        // ================= LEADERBOARD =================
+        function setLeaderboardTab(tab) {
+            currentLeaderboardTab = tab;
+            document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayStart = new Date(today).getTime();
+            const todayEnd = todayStart + 86400000;
+
+            // Günlük verileri filtrele
+            const dailyReports = reports.filter(r => r.createdAt >= todayStart && r.createdAt < todayEnd && r.status === 'approved');
+            const dailyActivity = activityLogs.filter(l => l.date === today);
+
+            let html = '';
+
+            if (currentLeaderboardTab === 'reports') {
+                const counts = {};
+                dailyReports.forEach(r => { counts[r.userId] = (counts[r.userId] || 0) + 1; });
+                const leaders = Object.entries(counts).map(([uid, count]) => ({ user: users.find(u => u.id == uid), count }))
+                    .filter(x => x.user).sort((a,b) => b.count - a.count).slice(0, 10);
+                
+                html = leaders.length ? leaders.map((l, idx) => `
+                    <div class="leaderboard-item">
+                        <div class="rank-num ${idx < 3 ? 'rank-'+(idx+1) : ''}">${idx+1}</div>
+                        <div class="lb-info"><div class="lb-name">${l.user.name}</div><div class="lb-detail">${l.user.username}</div></div>
+                        <div class="lb-score">${l.count} Rapor</div>
+                    </div>
+                `).join('') : '<div class="empty-state"><p>Bugün veri yok</p></div>';
+            } else if (currentLeaderboardTab === 'icraat') {
+                const counts = {};
+                dailyReports.forEach(r => { counts[r.userId] = (counts[r.userId] || 0) + (r.icraatlar ? r.icraatlar.length : 0); });
+                const leaders = Object.entries(counts).map(([uid, count]) => ({ user: users.find(u => u.id == uid), count }))
+                    .filter(x => x.user).sort((a,b) => b.count - a.count).slice(0, 10);
+                
+                html = leaders.length ? leaders.map((l, idx) => `
+                    <div class="leaderboard-item">
+                        <div class="rank-num ${idx < 3 ? 'rank-'+(idx+1) : ''}">${idx+1}</div>
+                        <div class="lb-info"><div class="lb-name">${l.user.name}</div><div class="lb-detail">${l.user.username}</div></div>
+                        <div class="lb-score">${l.count} İcraat</div>
+                    </div>
+                `).join('') : '<div class="empty-state"><p>Bugün veri yok</p></div>';
+            } else if (currentLeaderboardTab === 'activity') {
+                const counts = {};
+                dailyActivity.forEach(l => { counts[l.userId] = (counts[l.userId] || 0) + (l.duration || 0); });
+                const leaders = Object.entries(counts).map(([uid, ms]) => ({ user: users.find(u => u.id == uid), duration: ms }))
+                    .filter(x => x.user).sort((a,b) => b.duration - a.duration).slice(0, 10);
+                
+                html = leaders.length ? leaders.map((l, idx) => `
+                    <div class="leaderboard-item">
+                        <div class="rank-num ${idx < 3 ? 'rank-'+(idx+1) : ''}">${idx+1}</div>
+                        <div class="lb-info"><div class="lb-name">${l.user.name}</div><div class="lb-detail">${l.user.username}</div></div>
+                        <div class="lb-score">${formatDuration(l.duration)}</div>
+                    </div>
+                `).join('') : '<div class="empty-state"><p>Bugün veri yok</p></div>';
+            }
+
+            document.getElementById('leaderboardContent').innerHTML = html;
+        }
+
+        // ================= ANNOUNCEMENTS =================
+        function renderAnnouncements() {
+            const filtered = announcements.sort((a,b) => b.createdAt - a.createdAt);
+            const list = document.getElementById('announcementsList');
+            const isAdmin = currentUser.role === 'sunucu_yoneticisi';
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i><h3>Duyuru bulunmuyor</h3></div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(a => {
+                const author = users.find(u => u.id === a.authorId);
+                const canDelete = isAdmin || (author && author.id === currentUser.id);
+                return `
+                    <div class="announcement-card" id="ann-${a.id}">
+                        <div class="ann-header">
+                            <div class="ann-author">
+                                <div class="ann-avatar">${author ? author.name[0].toUpperCase() : '?'}</div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 13px;">${author ? author.name : 'Bilinmiyor'}</div>
+                                    <div class="ann-meta">${formatDateTime(a.createdAt)} &bull; ${author ? ROLES[author.role].label : ''}</div>
+                                </div>
+                            </div>
+                            ${canDelete ? `<button class="btn btn-danger" style="padding: 6px 10px; font-size: 11px;" onclick="deleteAnnouncement(${a.id})" title="Sil"><i class="fas fa-trash"></i></button>` : ''}
+                        </div>
+                        <div class="ann-title">${a.title}</div>
+                        <div class="ann-content">${linkify(a.content).replace(/\n/g, '<br>')}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteAnnouncement(id) {
+            if (!confirm('Bu duyuruyu silmek istediğinize emin misiniz?')) return;
+            announcements = announcements.filter(a => a.id !== id);
+            saveAnnouncements();
+            showToast('info', 'Silindi', 'Duyuru silindi.');
+            renderAnnouncements();
+        }
+
+        function openAnnouncementModal() {
+            document.getElementById('announcementModal').classList.add('active');
+            document.getElementById('annTitle').value = '';
+            document.getElementById('annContent').value = '';
+        }
+
+        function submitAnnouncement() {
+            const title = document.getElementById('annTitle').value.trim();
+            const content = document.getElementById('annContent').value.trim();
+
+            if (!title || !content) {
+                showToast('error', 'Hata', 'Başlık ve içerik zorunludur.');
+                return;
+            }
+
+            announcements.push({
+                id: Date.now(),
+                authorId: currentUser.id,
+                title,
+                content,
+                createdAt: Date.now()
+            });
+            saveAnnouncements();
+            closeModal('announcementModal');
+            showToast('success', 'Duyuru Yayınlandı', 'Duyurunuz başarıyla yayınlandı.');
+            renderAnnouncements();
+        }
+
+        // ================= ACTIVE USERS =================
+        function renderActiveUsers() {
+            const container = document.getElementById('activeUsersList');
+            const onlineCount = Object.values(presence).filter(p => p.online).length;
+            const totalUsers = users.length;
+
+            document.getElementById('activeUsersStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-signal"></i></div>
+                    <div class="stat-value">${onlineCount}</div>
+                    <div class="stat-label">Online Kullanıcı</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                    <div class="stat-value">${totalUsers}</div>
+                    <div class="stat-label">Toplam Personel</div>
+                </div>
+            `;
+
+            const sorted = [...users].sort((a,b) => {
+                const pa = presence[a.id] || {};
+                const pb = presence[b.id] || {};
+                if (pa.online && !pb.online) return -1;
+                if (!pa.online && pb.online) return 1;
+                return (pb.lastSeen || 0) - (pa.lastSeen || 0);
+            });
+
+            container.innerHTML = sorted.map(u => {
+                const p = presence[u.id] || {};
+                const isOnline = p.online;
+                return `
+                    <div class="active-user-item">
+                        <div class="active-user-avatar">
+                            ${u.name[0].toUpperCase()}
+                            <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+                        </div>
+                        <div>
+                            <div class="active-user-name">${u.name}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${ROLES[u.role].label}</div>
+                        </div>
+                        <div class="active-user-time">
+                            ${isOnline ? '<span style="color:var(--success);">● Online</span>' : getLastSeenText(p.lastSeen)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ================= LOGS AT =================
+        function handleLogAtPhotoSelect(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => { logAtTempPhotos.push(ev.target.result); renderLogAtPhotos(); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderLogAtPhotos() {
+            const grid = document.getElementById('logAtPhotos');
+            let html = '';
+            logAtTempPhotos.forEach((photo, idx) => {
+                html += `<div class="photo-item"><img src="${photo}"><button type="button" class="remove-btn" onclick="logAtTempPhotos.splice(${idx},1);renderLogAtPhotos()"><i class="fas fa-times"></i></button></div>`;
+            });
+            html += `<div class="photo-item photo-add" onclick="document.getElementById('logAtPhotoInput').click()"><i class="fas fa-plus"></i></div>`;
+            grid.innerHTML = html;
+        }
+
+        function handleLogAtFileSelect(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    logAtTempFiles.push({ name: file.name, type: file.type, size: file.size, data: ev.target.result });
+                    renderLogAtFiles();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderLogAtFiles() {
+            const container = document.getElementById('logAtFileList');
+            container.innerHTML = logAtTempFiles.map((f, idx) => `
+                <div class="file-item">
+                    <i class="fas fa-file file-icon"></i>
+                    <div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size/1024).toFixed(1)} KB</div></div>
+                    <button type="button" class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="logAtTempFiles.splice(${idx},1);renderLogAtFiles()"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function submitLogAt(e) {
+            e.preventDefault();
+            const date = document.getElementById('logAtDate').value;
+            const violator = document.getElementById('logAtViolator').value.trim();
+            const status = document.getElementById('logAtStatus').value.trim();
+            const punishment = document.getElementById('logAtPunishment').value.trim();
+
+            if (!date || !violator || !status || !punishment) {
+                showToast('error', 'Hata', 'Tüm alanları doldurun.');
+                return;
+            }
+
+            const logId = nextLogAtId;
+            nextLogAtId++;
+            saveNextLogAtId();
+
+            logsAt.push({
+                id: logId,
+                userId: currentUser.id,
+                username: currentUser.username,
+                name: currentUser.name,
+                date,
+                violator,
+                status,
+                punishment,
+                photos: [...logAtTempPhotos],
+                files: [...logAtTempFiles],
+                createdAt: Date.now()
+            });
+            saveLogsAt();
+
+            e.target.reset();
+            logAtTempPhotos = [];
+            logAtTempFiles = [];
+            renderLogAtPhotos();
+            renderLogAtFiles();
+            showToast('success', 'Logs Gönderildi', 'Logs kaydı başarıyla oluşturuldu.');
+            renderLogsAtList();
+        }
+
+        function renderLogsAtList() {
+            const container = document.getElementById('logsAtList');
+            const myLogs = logsAt.filter(l => l.userId === currentUser.id).sort((a,b) => b.createdAt - a.createdAt);
+            
+            if (myLogs.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Henüz logs kaydınız yok</h3></div>`;
+                return;
+            }
+
+            container.innerHTML = myLogs.map(l => `
+                <div class="glass" style="padding: 16px; margin-bottom: 12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <strong>Logs #${l.id}</strong>
+                        <span style="font-size:11px; color:var(--text-secondary);">${formatDate(l.date)}</span>
+                    </div>
+                    <div style="font-size:13px; margin-bottom:6px;"><strong>İhlal Yapan:</strong> ${escapeHtml(l.violator)}</div>
+                    <div style="font-size:13px; margin-bottom:6px;"><strong>İhlal Durumu:</strong> ${escapeHtml(l.status)}</div>
+                    <div style="font-size:13px; margin-bottom:10px;"><strong>Ceza:</strong> ${escapeHtml(l.punishment)}</div>
+                    ${l.photos && l.photos.length > 0 ? `<div class="photo-grid" style="margin-bottom:10px;">${l.photos.map(p => `<div class="photo-item" onclick="window.open('${p}')"><img src="${p}"></div>`).join('')}</div>` : ''}
+                    ${l.files && l.files.length > 0 ? `<div style="margin-bottom:10px;">${l.files.map(f => `<div class="file-item" onclick="window.open('${f.data}')"><i class="fas fa-file file-icon"></i><div class="file-info"><div class="file-name">${f.name}</div></div></div>`).join('')}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // ================= DISCIPLINE =================
+        function renderDiscipline() {
+            const container = document.getElementById('warningsList');
+            const isAdmin = currentUser.role === 'sunucu_yoneticisi';
+            const isSefi = currentUser.role === 'moderasyon_sefi';
+            
+            // Sadece kendi görüntüleyebileceği uyarılar (herkes kendi uyarılarını görebilir, admin/sefi hepsini)
+            let filtered = warnings;
+            if (!isAdmin && !isSefi) {
+                filtered = warnings.filter(w => w.userId === currentUser.id);
+            }
+            filtered = filtered.sort((a,b) => b.timestamp - a.timestamp);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state" style="padding: 30px 16px;"><i class="fas fa-shield-alt"></i><h3>Henüz uyarı kaydı yok</h3></div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(w => {
+                const u = users.find(us => us.id === w.userId);
+                const giver = users.find(us => us.id === w.givenBy);
+                return `
+                    <div class="warning-card ${w.level.toLowerCase()}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <span class="badge badge-${w.level.toLowerCase()}">${w.level}</span>
+                                <strong style="margin-left: 8px;">${u ? u.name : 'Bilinmiyor'}</strong>
+                                <span style="color: var(--text-secondary); font-size: 12px;">${u ? u.username : ''}</span>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-secondary);">${formatDateTime(w.timestamp)}</span>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                            <strong>Sebep:</strong> ${w.reason}
+                        </div>
+                        <div style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">
+                            Veren: ${giver ? giver.name : 'Bilinmiyor'} (${giver ? giver.username : ''})
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openWarningModal() {
+            document.getElementById('warningModal').classList.add('active');
+            document.getElementById('warnUsername').value = '';
+            document.getElementById('warnReason').value = '';
+            document.getElementById('warnLevel').value = 'U1';
+            document.getElementById('warnBanGroup').classList.add('hidden');
+        }
+
+        document.getElementById('warnLevel').addEventListener('change', function() {
+            document.getElementById('warnBanGroup').classList.toggle('hidden', this.value !== 'U3');
+        });
+
+        function submitWarning() {
+            const username = document.getElementById('warnUsername').value.trim();
+            const level = document.getElementById('warnLevel').value;
+            const reason = document.getElementById('warnReason').value.trim();
+            const banDays = parseInt(document.getElementById('warnBanDays').value) || 0;
+
+            if (!username || !reason) {
+                showToast('error', 'Hata', 'Kullanıcı ve sebep zorunludur.');
+                return;
+            }
+
+            const targetUser = users.find(u => u.username === username);
+            if (!targetUser) {
+                showToast('error', 'Hata', 'Kullanıcı bulunamadı.');
+                return;
+            }
+
+            warnings.push({
+                id: Date.now(),
+                userId: targetUser.id,
+                givenBy: currentUser.id,
+                level,
+                reason,
+                timestamp: Date.now()
+            });
+            saveWarnings();
+
+            if (level === 'U3') {
+                const userWarnings = warnings.filter(w => w.userId === targetUser.id);
+                if (userWarnings.length >= 3) {
+                    const bannedUntil = Date.now() + (banDays * 24 * 60 * 60 * 1000);
+                    const existingBan = userBans.find(b => b.userId === targetUser.id);
+                    if (existingBan) {
+                        existingBan.bannedUntil = bannedUntil;
+                        existingBan.reason = reason;
+                    } else {
+                        userBans.push({ userId: targetUser.id, bannedUntil, reason, givenBy: currentUser.id });
+                    }
+                    saveUserBans();
+                    showToast('warning', 'Otomatik Yaptırım', `${targetUser.name} adlı kullanıcıya ${banDays} gün rapor yasağı uygulandı.`);
+                }
+            }
+
+            closeModal('warningModal');
+            showToast('success', 'Uyarı Verildi', `${targetUser.name} kullanıcısına ${level} uyarısı verildi.`);
+            renderDiscipline();
+        }
+
+        // ================= ATTENDANCE (YOKLAMA) =================
+        function renderAttendance() {
+            const date = document.getElementById('attendanceDate').value || new Date().toISOString().split('T')[0];
+            const search = document.getElementById('attendanceSearch').value.trim().toLowerCase();
+            const tbody = document.getElementById('attendanceTable');
+
+            let filteredUsers = users;
+            if (search) {
+                filteredUsers = users.filter(u => u.username.toLowerCase().includes(search) || u.name.toLowerCase().includes(search));
+            }
+
+            if (filteredUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><h3>Sonuç bulunamadı</h3></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredUsers.map(u => {
+                // O günkü aktiflik süresi
+                const dayLogs = activityLogs.filter(l => l.userId === u.id && l.date === date);
+                const totalMs = dayLogs.reduce((sum, l) => sum + (l.duration || 0), 0);
+                
+                // O günkü logs sayısı
+                const dayLogsAt = logsAt.filter(l => l.userId === u.id && l.date === date).length;
+                
+                // O günkü rapor
+                const dayReport = reports.find(r => r.userId === u.id && r.date === date);
+                const icraatCount = dayReport ? (dayReport.icraatlar ? dayReport.icraatlar.length : 0) : 0;
+                const reportStatus = dayReport ? (dayReport.status === 'approved' ? '<span class="badge badge-approved">Onaylı</span>' : (dayReport.status === 'pending' ? '<span class="badge badge-pending">Bekliyor</span>' : '<span class="badge badge-rejected">Reddedildi</span>')) : '<span style="color:var(--text-secondary);">Rapor Yok</span>';
+
+                return `
+                    <tr>
+                        <td><strong>${u.name}</strong><br><small style="color:var(--text-secondary)">${u.username}</small></td>
+                        <td>${formatDuration(totalMs)}</td>
+                        <td>${dayLogsAt}</td>
+                        <td>${icraatCount}</td>
+                        <td>${reportStatus}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= APPROVAL LOGS =================
+        function renderApprovalLogs() {
+            const container = document.getElementById('approvalLogsContainer');
+            const sorted = [...approvalLogs].sort((a,b) => b.timestamp - a.timestamp);
+            if (sorted.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-history"></i><h3>Henüz log yok</h3></div>`;
+                return;
+            }
+
+            container.innerHTML = sorted.map(l => `
+                <div class="log-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>
+                            <strong style="color: ${l.type === 'approve' ? 'var(--success)' : 'var(--danger)'}">
+                                ${l.type === 'approve' ? 'ONAYLANDI' : 'REDDEDİLDİ'}
+                            </strong>
+                            &mdash; Rapor #${l.reportId}
+                        </span>
+                        <span class="badge ${l.type === 'approve' ? 'badge-approved' : 'badge-rejected'}">
+                            ${l.type === 'approve' ? 'Onay' : 'Red'}
+                        </span>
+                    </div>
+                    <div style="margin-top:6px; color: var(--text-secondary); font-size: 12px;">
+                        <i class="fas fa-user"></i> ${l.reportOwner} (${l.reportOwnerUser}) 
+                        &mdash; İşlem yapan: <strong>${l.actionByName}</strong> (${l.actionBy})
+                    </div>
+                    <div class="log-time"><i class="fas fa-clock"></i> ${formatDateTime(l.timestamp)}</div>
+                </div>
+            `).join('');
+        }
+
+        // ================= ACTIVITY LOGS =================
+        function renderActivityLogs() {
+            const tbody = document.getElementById('activityLogsTable');
+            const sorted = [...activityLogs].sort((a,b) => b.createdAt - a.createdAt);
+            
+            if (sorted.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:20px;"><h3>Henüz aktivite kaydı yok</h3></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(l => {
+                const u = users.find(us => us.id === l.userId);
+                return `
+                    <tr>
+                        <td><strong>${u ? u.name : 'Bilinmiyor'}</strong><br><small style="color:var(--text-secondary)">${l.username}</small></td>
+                        <td>${formatDate(l.date)}</td>
+                        <td>${formatTime(l.startTime)}</td>
+                        <td>${l.endTime ? formatTime(l.endTime) : '<span style="color:var(--success)">Devam ediyor</span>'}</td>
+                        <td>${formatDuration(l.duration)}</td>
+                        <td>${formatDuration(getTotalActivity(l.userId))}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= ADMIN =================
+        function renderAdmin() {
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = users.map(u => {
+                const p = presence[u.id] || {};
+                return `
+                    <tr>
+                        <td>
+                            <strong>${u.name}</strong><br>
+                            <small style="color:var(--text-secondary)">@${u.username.replace('@','')}</small>
+                        </td>
+                        <td><span class="badge ${u.role === 'sunucu_yoneticisi' ? 'badge-approved' : (u.role === 'moderasyon_sefi' ? 'badge-pending' : '')}">${ROLES[u.role].label}</span></td>
+                        <td>
+                            <span style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">${u.password || 'Teaf1234'}</span>
+                        </td>
+                        <td>
+                            <span style="color: ${p.online ? 'var(--success)' : 'var(--text-secondary)'}; font-size: 12px;">
+                                <i class="fas fa-circle" style="font-size: 8px;"></i> ${p.online ? 'Online' : 'Offline'}
+                            </span>
+                        </td>
+                        <td>
+                            ${u.id !== currentUser.id ? `
+                                <button class="btn btn-danger" style="padding: 6px 10px; font-size: 11px;" onclick="deleteUser(${u.id})">
+                                    <i class="fas fa-trash"></i> Sil
+                                </button>
+                            ` : '<span style="color:var(--text-secondary); font-size:11px;">Siz</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function addUser(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUserUsername').value.trim();
+            const role = document.getElementById('newUserRole').value;
+
+            if (!username.startsWith('@')) {
+                showToast('error', 'Hata', 'Kullanıcı adı @ ile başlamalıdır.');
+                return;
+            }
+
+            const existingUser = users.find(u => u.username === username);
+            if (existingUser) {
+                const oldRole = existingUser.role;
+                existingUser.role = role;
+
+                roleChangeLogs.push({
+                    id: Date.now(),
+                    userId: existingUser.id,
+                    username: existingUser.username,
+                    name: existingUser.name,
+                    oldRole: ROLES[oldRole].label,
+                    newRole: ROLES[role].label,
+                    changedBy: currentUser.id,
+                    changedByName: currentUser.name,
+                    changedByUser: currentUser.username,
+                    timestamp: Date.now()
+                });
+                saveRoleChangeLogs();
+
+                saveUsers();
+                showToast('success', 'Rol Güncellendi', `${existingUser.name} (${existingUser.username}) kullanıcısının rolü "${ROLES[role].label}" olarak güncellendi.`);
+                renderAdmin();
+                document.getElementById('addUserForm').reset();
+                return;
+            }
+
+            const name = username.replace('@', '');
+            users.push({
+                id: Date.now(),
+                username,
+                name,
+                password: 'Teaf1234',
+                role,
+                createdAt: Date.now()
+            });
+            saveUsers();
+            showToast('success', 'Kullanıcı Eklendi', `${name} başarıyla eklendi. Şifre: Teaf1234`);
+            renderAdmin();
+            document.getElementById('addUserForm').reset();
+        }
+
+        function deleteUser(id) {
+            if (!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?')) return;
+            users = users.filter(u => u.id !== id);
+            saveUsers();
+            renderAdmin();
+            showToast('info', 'Silindi', 'Kullanıcı silindi.');
+        }
+
+        function changePassword(e) {
+            e.preventDefault();
+
+            const usernameInput = document.getElementById('cpUsername');
+            const newPassInput = document.getElementById('cpNewPassword');
+            const confirmPassInput = document.getElementById('cpConfirmPassword');
+
+            if (!usernameInput || !newPassInput || !confirmPassInput) {
+                showToast('error', 'Hata', 'Form elemanları bulunamadı.');
+                return;
+            }
+
+            const username = usernameInput.value.trim();
+            const newPass = newPassInput.value;
+            const confirmPass = confirmPassInput.value;
+
+            if (!username) {
+                showToast('error', 'Hata', 'Lütfen bir kullanıcı adı girin.');
+                return;
+            }
+            if (!username.startsWith('@')) {
+                showToast('error', 'Hata', 'Kullanıcı adı @ ile başlamalıdır. Örn: @berkcan');
+                return;
+            }
+            if (newPass !== confirmPass) {
+                showToast('error', 'Hata', 'Şifreler eşleşmiyor.');
+                return;
+            }
+            if (newPass.length < 4) {
+                showToast('error', 'Hata', 'Şifre en az 4 karakter olmalıdır.');
+                return;
+            }
+
+            const targetUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+            if (!targetUser) {
+                showToast('error', 'Hata', '"' + username + '" kullanıcısı bulunamadı.');
+                return;
+            }
+
+            targetUser.password = newPass;
+            saveUsers();
+
+            roleChangeLogs.push({
+                id: Date.now(),
+                userId: targetUser.id,
+                username: targetUser.username,
+                name: targetUser.name,
+                oldRole: 'Şifre Değişikliği',
+                newRole: '********',
+                changedBy: currentUser.id,
+                changedByName: currentUser.name,
+                changedByUser: currentUser.username,
+                timestamp: Date.now()
+            });
+            saveRoleChangeLogs();
+
+            document.getElementById('changePasswordForm').reset();
+            showToast('success', 'Şifre Güncellendi', targetUser.name + ' kullanıcısının şifresi başarıyla değiştirildi.');
+            renderAdmin();
+        }
+
+        function renderRoleLogs() {
+            const container = document.getElementById('roleLogsContainer');
+            const sorted = [...roleChangeLogs].sort((a,b) => b.timestamp - a.timestamp);
+            if (sorted.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-user-shield"></i><h3>Henüz rol değişikliği yok</h3></div>`;
+                return;
+            }
+            container.innerHTML = sorted.map(l => {
+                const user = users.find(u => u.id === l.userId);
+                const changer = users.find(u => u.id === l.changedBy);
+                return `
+                    <div class="log-item">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>
+                                <strong style="color: var(--accent-light)">ROL DEĞİŞİKLİĞİ</strong>
+                                &mdash; ${user ? user.name : 'Bilinmiyor'} (${user ? user.username : ''})
+                            </span>
+                            <span class="badge badge-pending">${l.oldRole} → ${l.newRole}</span>
+                        </div>
+                        <div style="margin-top:6px; color: var(--text-secondary); font-size: 12px;">
+                            <i class="fas fa-user"></i> Değiştiren: <strong>${changer ? changer.name : 'Bilinmiyor'}</strong> (${changer ? changer.username : ''})
+                        </div>
+                        <div class="log-time"><i class="fas fa-clock"></i> ${formatDateTime(l.timestamp)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ================= REPORT DETAIL =================
+        function viewReport(id) {
+            const r = reports.find(rep => rep.id === id);
+            if (!r) return;
+
+            const user = users.find(u => u.id === r.userId);
+            const level = ROLES[currentUser.role].level;
+            const canAction = (currentUser.role === 'sunucu_yoneticisi' || currentUser.role === 'moderasyon_sefi' || 
+                (currentUser.role === 'moderasyon_yonetim' && r.role === 'moderasyon')) && r.status === 'pending';
+
+            let photosHtml = '';
+            if (r.photos && r.photos.length > 0) {
+                photosHtml = `<div style="margin-top: 14px;"><div class="form-label">Kanıt Fotoğrafları (${r.photos.length} adet)</div><div class="photo-grid" style="margin-top: 8px;">` +
+                    r.photos.map(p => `<div class="photo-item" style="cursor: zoom-in;" onclick="window.open('${p}')"><img src="${p}"></div>`).join('') +
+                    `</div></div>`;
+            }
+
+            let filesHtml = '';
+            if (r.files && r.files.length > 0) {
+                filesHtml = `<div style="margin-top: 14px;"><div class="form-label">Ek Dosyalar (${r.files.length} adet)</div>` +
+                    r.files.map(f => `
+                        <div class="file-item" style="cursor: pointer;" onclick="window.open('${f.data}')">
+                            <i class="fas ${f.type.includes('pdf') ? 'fa-file-pdf' : 'fa-file-word'} file-icon"></i>
+                            <div class="file-info"><div class="file-name">${f.name}</div><div class="file-size">${(f.size / 1024).toFixed(1)} KB</div></div>
+                            <i class="fas fa-download" style="color: var(--accent-light);"></i>
+                        </div>
+                    `).join('') + `</div>`;
+            }
+
+            document.getElementById('reportModalBody').innerHTML = `
+                <div style="margin-bottom: 14px;">
+                    <span class="badge ${r.status === 'approved' ? 'badge-approved' : (r.status === 'rejected' ? 'badge-rejected' : 'badge-pending')}">
+                        ${r.status === 'approved' ? 'Onaylandı' : (r.status === 'rejected' ? 'Reddedildi' : 'Bekliyor')}
+                    </span>
+                    <span style="color: var(--text-secondary); font-size: 12px; margin-left: 10px;">
+                        Rapor ID: <strong>#${r.id}</strong> &bull; ${formatDate(r.date)} &bull; ${r.hours} Saat
+                    </span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Personel</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="ann-avatar">${user ? user.name[0].toUpperCase() : '?'}</div>
+                        <div><div style="font-weight: 600; font-size: 13px;">${user ? user.name : r.name}</div><div style="font-size: 11px; color: var(--text-secondary);">${r.username} &bull; ${ROLES[r.role] ? ROLES[r.role].label : ''}</div></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">İcraatler</label>
+                    <div style="background: var(--bg-primary); padding: 12px; border-radius: 10px; border: 1px solid var(--border);">
+                        ${r.icraatlar.map(i => `<div style="padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 13px;"><i class="fas fa-check-circle" style="color: var(--success); margin-right: 8px;"></i>${i}</div>`).join('')}
+                    </div>
+                </div>
+                ${r.note ? `<div class="form-group"><label class="form-label">Ek Not</label><div style="color: var(--text-secondary); font-size: 13px;">${r.note}</div></div>` : ''}
+                ${photosHtml}
+                ${filesHtml}
+                ${r.approvedBy ? `<div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-secondary);">
+                    <i class="fas fa-user-check" style="margin-right: 6px;"></i> ${r.status === 'approved' ? 'Onaylayan' : 'İşlem yapan'}: ${r.approvedBy} &bull; ${formatDateTime(r.approvedAt)}
+                </div>` : ''}
+            `;
+
+            const footer = document.getElementById('reportModalFooter');
+            if (canAction) {
+                footer.innerHTML = `
+                    <button class="btn btn-success" onclick="approveReport(${r.id}); closeModal('reportModal');"><i class="fas fa-check"></i> Onayla</button>
+                    <button class="btn btn-danger" onclick="rejectReport(${r.id}); closeModal('reportModal');"><i class="fas fa-times"></i> Reddet</button>
+                `;
+            } else {
+                footer.innerHTML = `<button class="btn btn-outline" onclick="closeModal('reportModal')">Kapat</button>`;
+            }
+
+            document.getElementById('reportModal').classList.add('active');
+        }
+
+        // ================= UTILS =================
+        function closeModal(id) { 
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active'); 
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', function(e) { 
+                if (e.target === this) this.classList.remove('active'); 
+            });
+        });
+
+        // Rapor tarihi default bugün
+        const dateInput = document.getElementById('reportDate');
+        const todayStr = new Date().toISOString().split('T')[0];
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        if (dateInput) {
+            dateInput.max = todayStr;
+            dateInput.min = thirtyDaysAgo.toISOString().split('T')[0];
+            dateInput.value = todayStr;
+        }
+
+        // ================= INIT =================
+        initData();
+    </script>
+</body>
+  </html>
